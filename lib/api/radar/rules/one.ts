@@ -1,7 +1,7 @@
-import type { Handler } from 'hono';
 import { namespaces } from '@/registry';
 import { parse } from 'tldts';
 import { Radar } from '@/types';
+import { z, createRoute, RouteHandler } from '@hono/zod-openapi';
 
 const radar: Radar = {};
 
@@ -36,6 +36,33 @@ for (const namespace in namespaces) {
     }
 }
 
-const handler: Handler = (ctx) => ctx.json(radar);
+const ParamsSchema = z.object({
+    domain: z.string().openapi({
+        param: {
+            name: 'domain',
+            in: 'path',
+        },
+        example: 'github.com',
+    }),
+});
 
-export default handler;
+const route = createRoute({
+    method: 'get',
+    path: '/radar/rules/{domain}',
+    tags: ['Radar'],
+    request: {
+        params: ParamsSchema,
+    },
+    responses: {
+        200: {
+            description: 'Radar rules for a domain name (does not support subdomains)',
+        },
+    },
+});
+
+const handler: RouteHandler<typeof route> = (ctx) => {
+    const { domain } = ctx.req.valid('param');
+    return ctx.json(radar[domain]);
+};
+
+export { route, handler };
