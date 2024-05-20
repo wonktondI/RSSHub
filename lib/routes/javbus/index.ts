@@ -8,8 +8,9 @@ import got from '@/utils/got';
 import { load } from 'cheerio';
 import { parseDate } from '@/utils/parse-date';
 import { art } from '@/utils/render';
-import * as path from 'node:path';
+import path from 'node:path';
 import { config } from '@/config';
+import ConfigNotFoundError from '@/errors/types/config-not-found';
 
 const toSize = (raw) => {
     const matches = raw.match(/(\d+(\.\d+)?)(\w+)/);
@@ -19,15 +20,18 @@ const toSize = (raw) => {
 const allowDomain = new Set(['javbus.com', 'javbus.org', 'javsee.icu', 'javsee.one']);
 
 export const route: Route = {
-    path: '*',
-    radar: {
-        source: ['www.seejav.pw/'],
-        target: '',
-    },
-    name: 'Unknown',
-    maintainers: [],
+    path: '/:path{.+}?',
+    radar: [
+        {
+            source: ['www.javbus.com/:path*'],
+            target: '/:path',
+        },
+    ],
+    name: 'Works',
+    maintainers: ['MegrezZhu', 'CoderTonyChan', 'nczitzk', 'Felix2yu'],
+    categories: ['multimedia', 'popular'],
     handler,
-    url: 'www.seejav.pw/',
+    url: 'www.javbus.com',
 };
 
 async function handler(ctx) {
@@ -39,7 +43,7 @@ async function handler(ctx) {
     const westernUrl = `https://www.${westernDomain}`;
 
     if (!config.feature.allow_user_supply_unsafe_domain && (!allowDomain.has(new URL(`https://${domain}/`).hostname) || !allowDomain.has(new URL(`https://${westernDomain}/`).hostname))) {
-        throw new Error(`This RSS is disabled unless 'ALLOW_USER_SUPPLY_UNSAFE_DOMAIN' is set to 'true'.`);
+        throw new ConfigNotFoundError(`This RSS is disabled unless 'ALLOW_USER_SUPPLY_UNSAFE_DOMAIN' is set to 'true'.`);
     }
 
     const currentUrl = `${isWestern ? westernUrl : rootUrl}${getSubPath(ctx)

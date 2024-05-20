@@ -6,7 +6,7 @@ import logger from '@/utils/logger';
 
 export const route: Route = {
     path: '/user/video/:uid/:disableEmbed?',
-    categories: ['social-media'],
+    categories: ['social-media', 'popular'],
     example: '/bilibili/user/video/2267573',
     parameters: { uid: '用户 id, 可在 UP 主主页中找到', disableEmbed: '默认为开启内嵌视频, 任意值为关闭' },
     features: {
@@ -17,14 +17,16 @@ export const route: Route = {
         supportPodcast: false,
         supportScihub: false,
     },
-    radar: {
-        source: ['space.bilibili.com/:uid'],
-        target: '/user/video/:uid',
-    },
+    radar: [
+        {
+            source: ['space.bilibili.com/:uid'],
+            target: '/user/video/:uid',
+        },
+    ],
     name: 'UP 主投稿',
     maintainers: ['DIYgod'],
     handler,
-    description: `:::tip[动态的专栏显示全文]
+    description: `:::tip 动态的专栏显示全文
   可以使用 [UP 主动态](#bilibili-up-zhu-dong-tai)路由作为代替绕过反爬限制
   :::`,
 };

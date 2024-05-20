@@ -1,6 +1,6 @@
 import { Route } from '@/types';
 import got from '@/utils/got';
-import utils from './utils';
+import { header } from './utils';
 import { load } from 'cheerio';
 import { parseDate } from '@/utils/parse-date';
 
@@ -17,9 +17,11 @@ export const route: Route = {
         supportPodcast: false,
         supportScihub: false,
     },
-    radar: {
-        source: ['zhuanlan.zhihu.com/:id'],
-    },
+    radar: [
+        {
+            source: ['zhuanlan.zhihu.com/:id'],
+        },
+    ],
     name: '专栏',
     maintainers: ['DIYgod'],
     handler,
@@ -32,7 +34,7 @@ async function handler(ctx) {
         method: 'get',
         url: `https://www.zhihu.com/api/v4/columns/${id}/items`,
         headers: {
-            ...utils.header,
+            ...header,
             Referer: `https://zhuanlan.zhihu.com/${id}`,
         },
     });
@@ -41,7 +43,7 @@ async function handler(ctx) {
         method: 'get',
         url: `https://www.zhihu.com/api/v4/columns/${id}/pinned-items`,
         headers: {
-            ...utils.header,
+            ...header,
             Referer: `https://zhuanlan.zhihu.com/${id}`,
         },
     });
@@ -71,7 +73,7 @@ async function handler(ctx) {
         let title = '';
         let link = '';
         let author = '';
-        let pubDate = '';
+        let pubDate: Date;
 
         switch (item.type) {
             case 'answer':

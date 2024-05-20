@@ -28,10 +28,12 @@ export const route: Route = {
         supportPodcast: false,
         supportScihub: false,
     },
-    radar: {
-        source: ['apps.apple.com/:country/app/:appSlug/:id', 'apps.apple.com/:country/app/:id'],
-        target: '/apps/update/:country/:id',
-    },
+    radar: [
+        {
+            source: ['apps.apple.com/:country/app/:appSlug/:id', 'apps.apple.com/:country/app/:id'],
+            target: '/apps/update/:country/:id',
+        },
+    ],
     name: 'App Update',
     maintainers: ['EkkoG', 'nczitzk'],
     handler,
@@ -115,9 +117,13 @@ async function handler(ctx) {
 
     const icon = new URL('favicon.ico', rootUrl).href;
 
+    ctx.set('json', {
+        appData,
+    });
+
     return {
         item: items,
-        title: `${title} - Apple App Stroe`,
+        title: `${title} - Apple App Store`,
         link: currentUrl,
         description: description?.replace(/\n/g, ' '),
         language: $('html').prop('lang'),
@@ -128,8 +134,4 @@ async function handler(ctx) {
         author: artistName,
         allowEmpty: true,
     };
-
-    ctx.set('json', {
-        appData,
-    });
 }

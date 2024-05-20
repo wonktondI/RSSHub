@@ -3,10 +3,12 @@ import utils from './utils';
 
 export const route: Route = {
     path: ['/home/:category?/:sort?/:filter?', '/:category?/:sort?/:filter?'],
-    radar: {
-        source: ['javdb.com/'],
-        target: '',
-    },
+    radar: [
+        {
+            source: ['javdb.com/'],
+            target: '',
+        },
+    ],
     name: 'Unknown',
     maintainers: ['nczitzk'],
     handler,
@@ -28,7 +30,6 @@ export const route: Route = {
   | 全部 | 可下载 | 含字幕 | 含短評 |
   | ---- | ------ | ------ | ------ |
   | 0    | 1      | 2      | 3      |`,
-    url: 'javdb.com/',
 };
 
 async function handler(ctx) {

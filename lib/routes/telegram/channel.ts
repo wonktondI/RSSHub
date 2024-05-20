@@ -1,17 +1,17 @@
 import { Route } from '@/types';
 import { getCurrentPath } from '@/utils/helpers';
-const __dirname = getCurrentPath(import.meta.url);
-
 import cache from '@/utils/cache';
 import { config } from '@/config';
 import got from '@/utils/got';
 import { load } from 'cheerio';
 import { parseDate } from '@/utils/parse-date';
 import { art } from '@/utils/render';
-import * as path from 'node:path';
+import path from 'node:path';
 import querystring from 'querystring';
 import { fallback, queryToBoolean } from '@/utils/readable-social';
 import tglibchannel from './tglib/channel';
+
+const __dirname = getCurrentPath(import.meta.url);
 
 /* message types */
 const REPLY = 'REPLY';
@@ -29,7 +29,7 @@ const LOCATION = 'LOCATION';
 const CONTACT = 'CONTACT';
 const STICKER = 'STICKER';
 const ANIMATED_STICKER = 'ANIMATED_STICKER';
-// const VIDEO_STICKER = 'VIDEO_STICKER';  // not supported yet by t.me
+const VIDEO_STICKER = 'VIDEO_STICKER';
 const UNSUPPORTED = 'UNSUPPORTED';
 const PARTIALLY_UNSUPPORTED = 'PARTIALLY_UNSUPPORTED';
 
@@ -50,14 +50,14 @@ const mediaTagDict = {
     CONTACT: ['[Contact]', '📱'],
     STICKER: ['[Sticker]', '[Sticker]'],
     ANIMATED_STICKER: ['[Animated Sticker]', '[Animated Sticker]'],
-    // VIDEO_STICKER: ['[Video Sticker]', '[Video Sticker]'],  // not supported yet by t.me
+    VIDEO_STICKER: ['[Video Sticker]', '[Video Sticker]'],
     UNSUPPORTED: ['[Unsupported]', '🚫'],
     PARTIALLY_UNSUPPORTED: ['', ''],
 };
 
 export const route: Route = {
     path: '/channel/:username/:routeParams?',
-    categories: ['social-media'],
+    categories: ['social-media', 'popular'],
     example: '/telegram/channel/awesomeDIYgod/searchQuery=twitter',
     parameters: { username: 'channel username', routeParams: 'extra parameters, see the table below' },
     features: {
@@ -68,28 +68,32 @@ export const route: Route = {
         supportPodcast: false,
         supportScihub: false,
     },
-    radar: {
-        source: ['t.me/s/:username'],
-        target: '/channel/:username',
-    },
+    radar: [
+        {
+            source: ['t.me/s/:username'],
+            target: '/channel/:username',
+        },
+    ],
     name: 'Channel',
     maintainers: ['DIYgod', 'Rongronggg9'],
     handler,
-    description: `| Key                   | Description                                                           | Accepts                                              | Defaults to       |
-  | --------------------- | --------------------------------------------------------------------- | ---------------------------------------------------- | ----------------- |
-  | showLinkPreview       | Show the link preview from Telegram                                   | 0/1/true/false                                       | true              |
-  | showViaBot            | For messages sent via bot, show the bot                               | 0/1/true/false                                       | true              |
-  | showReplyTo           | For reply messages, show the target of the reply                      | 0/1/true/false                                       | true              |
-  | showFwdFrom           | For forwarded messages, show the forwarding source                    | 0/1/true/false                                       | true              |
-  | showFwdFromAuthor     | For forwarded messages, show the author of the forwarding source      | 0/1/true/false                                       | true              |
-  | showInlineButtons     | Show inline buttons                                                   | 0/1/true/false                                       | false             |
-  | showMediaTagInTitle   | Show media tags in the title                                          | 0/1/true/false                                       | true              |
-  | showMediaTagAsEmoji   | Show media tags as emoji                                              | 0/1/true/false                                       | true              |
-  | includeFwd            | Include forwarded messages                                            | 0/1/true/false                                       | true              |
-  | includeReply          | Include reply messages                                                | 0/1/true/false                                       | true              |
-  | includeServiceMsg     | Include service messages (e.g. message pinned, channel photo updated) | 0/1/true/false                                       | true              |
-  | includeUnsupportedMsg | Include messages unsupported by t.me                                  | 0/1/true/false                                       | false             |
-  | searchQuery           | search query                                                          | keywords; replace \`#\` by \`%23\` for hashtag searching | (search disabled) |
+    description: `
+  | Key                    | Description                                                           | Accepts                                            | Defaults to  |
+  | ---------------------- | --------------------------------------------------------------------- | -------------------------------------------------- | ------------ |
+  | showLinkPreview        | Show the link preview from Telegram                                   | 0/1/true/false                                     | true         |
+  | showViaBot             | For messages sent via bot, show the bot                               | 0/1/true/false                                     | true         |
+  | showReplyTo            | For reply messages, show the target of the reply                      | 0/1/true/false                                     | true         |
+  | showFwdFrom            | For forwarded messages, show the forwarding source                    | 0/1/true/false                                     | true         |
+  | showFwdFromAuthor      | For forwarded messages, show the author of the forwarding source      | 0/1/true/false                                     | true         |
+  | showInlineButtons      | Show inline buttons                                                   | 0/1/true/false                                     | false        |
+  | showMediaTagInTitle    | Show media tags in the title                                          | 0/1/true/false                                     | true         |
+  | showMediaTagAsEmoji    | Show media tags as emoji                                              | 0/1/true/false                                     | true         |
+  | showHashtagAsHyperlink | Show hashtags as hyperlinks (\`https://t.me/s/channel?q=%23hashtag\`) | 0/1/true/false                                     | true         |
+  | includeFwd             | Include forwarded messages                                            | 0/1/true/false                                     | true         |
+  | includeReply           | Include reply messages                                                | 0/1/true/false                                     | true         |
+  | includeServiceMsg      | Include service messages (e.g. message pinned, channel photo updated) | 0/1/true/false                                     | true         |
+  | includeUnsupportedMsg  | Include messages unsupported by t.me                                  | 0/1/true/false                                     | false        |
+  | searchQuery            | search query                                                          | keywords; replace \`#hashtag\` with \`%23hashtag\` | (no keyword) |
 
   Specify different option values than default values can meet different needs, URL
 
@@ -122,12 +126,13 @@ async function handler(ctx) {
     let showInlineButtons = false;
     let showMediaTagInTitle = true;
     let showMediaTagAsEmoji = true;
+    let showHashtagAsHyperlink = true;
     let includeFwd = true;
     let includeReply = true;
     let includeServiceMsg = true;
     let includeUnsupportedMsg = false;
     let searchQuery = routeParams; // for backward compatibility
-    if (routeParams && routeParams.search(/(^|&)(show(LinkPreview|ViaBot|ReplyTo|FwdFrom(Author)?|InlineButtons|MediaTag(InTitle|AsEmoji))|include(Fwd|Reply|(Service|Unsupported)Msg)|searchQuery)=/) !== -1) {
+    if (routeParams && routeParams.search(/(^|&)(show(LinkPreview|ViaBot|ReplyTo|FwdFrom(Author)?|InlineButtons|MediaTag(InTitle|AsEmoji)|HashtagAsHyperlink)|include(Fwd|Reply|(Service|Unsupported)Msg)|searchQuery)=/) !== -1) {
         routeParams = querystring.parse(ctx.req.param('routeParams'));
         showLinkPreview = !!fallback(undefined, queryToBoolean(routeParams.showLinkPreview), showLinkPreview);
         showViaBot = !!fallback(undefined, queryToBoolean(routeParams.showViaBot), showViaBot);
@@ -137,6 +142,7 @@ async function handler(ctx) {
         showInlineButtons = !!fallback(undefined, queryToBoolean(routeParams.showInlineButtons), showInlineButtons);
         showMediaTagInTitle = !!fallback(undefined, queryToBoolean(routeParams.showMediaTagInTitle), showMediaTagInTitle);
         showMediaTagAsEmoji = !!fallback(undefined, queryToBoolean(routeParams.showMediaTagAsEmoji), showMediaTagAsEmoji);
+        showHashtagAsHyperlink = !!fallback(undefined, queryToBoolean(routeParams.showHashtagAsHyperlink), showHashtagAsHyperlink);
         includeFwd = !!fallback(undefined, queryToBoolean(routeParams.includeFwd), includeFwd);
         includeReply = !!fallback(undefined, queryToBoolean(routeParams.includeReply), includeReply);
         includeServiceMsg = !!fallback(undefined, queryToBoolean(routeParams.includeServiceMsg), includeServiceMsg);
@@ -157,6 +163,24 @@ async function handler(ctx) {
     );
 
     const $ = load(data);
+
+    /*
+     * Since 2024/4/20, t.me/s/ mistakenly have every '&' in **hyperlinks** replaced by '&amp;'.
+     * The characteristic of a hyperlink is [onclick] (pop-up confirmation), which is not present in ordinary links.
+     * This is a workaround to fix the issue until Telegram fixes it.
+     */
+    $('a[onclick][href]').each((_, elem) => {
+        const $elem = $(elem);
+        const href = $elem.attr('href');
+        href && $elem.attr('href', href.replaceAll('&amp;', '&'));
+    });
+
+    !showHashtagAsHyperlink &&
+        $('a[href^="?q=%23"]').each((_, elem) => {
+            const $elem = $(elem);
+            $elem.replaceWith($elem.text());
+        });
+
     const list = includeServiceMsg
         ? $('.tgme_widget_message_wrap:not(.tgme_widget_message_wrap:has(.tme_no_messages_found))') // exclude 'no posts found' messages
         : $('.tgme_widget_message_wrap:not(.tgme_widget_message_wrap:has(.service_message,.tme_no_messages_found))'); // also exclude service messages
@@ -221,6 +245,9 @@ async function handler(ctx) {
                     }
                     if (item.find('.tgme_widget_message_tgsticker').length) {
                         msgTypes.push(ANIMATED_STICKER);
+                    }
+                    if (item.find('.tgme_widget_message_videosticker').length) {
+                        msgTypes.push(VIDEO_STICKER);
                     }
                     if (item.find('.message_media_not_supported').length) {
                         if (item.find('.media_supported_cont').length) {
@@ -367,6 +394,12 @@ async function handler(ctx) {
                                     tag_media += $(source).toString();
                                 });
                                 tag_media += '</picture>';
+                            } else if (node.attribs && node.attribs.class && node.attribs.class.search(/(^|\s)tgme_widget_message_videosticker(\s|$)/) !== -1) {
+                                // video sticker
+                                const videoLink = $node.find('.js-videosticker_video').attr('src');
+                                tag_media += art(path.join(__dirname, 'templates/video.art'), {
+                                    source: videoLink,
+                                });
                             } else if (node.name === 'img') {
                                 // unknown
                                 tag_media += $node.toString();
@@ -401,7 +434,9 @@ async function handler(ctx) {
                         return tag_media_all;
                     };
                     // ordinary message photos, service message photos, stickers, animated stickers, video
-                    const messageMedia = generateMedia('.tgme_widget_message_photo_wrap,.tgme_widget_message_service_photo,.tgme_widget_message_sticker,.tgme_widget_message_tgsticker,.tgme_widget_message_video_player');
+                    const messageMedia = generateMedia(
+                        '.tgme_widget_message_photo_wrap,.tgme_widget_message_service_photo,.tgme_widget_message_sticker,.tgme_widget_message_tgsticker,.tgme_widget_message_videosticker,.tgme_widget_message_video_player'
+                    );
 
                     /* location */
                     const location = () => {
